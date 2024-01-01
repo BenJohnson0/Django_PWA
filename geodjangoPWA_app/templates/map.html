@@ -1,0 +1,276 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Ben's PWA Map{% endblock %}
+
+{% block body %}
+
+<div id="map" style="height: 550px;"></div>
+
+    <link rel="stylesheet" href="{% static 'hotel_details.css' %}">
+
+<div id="request-form">
+    <h2>Hotel Requests</h2>
+
+    <!-- form for creating a hotel -->
+    <form id="hotel-form">
+        {% csrf_token %}
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required>
+        <label for="address">Address (Use full address):</label>
+        <input type="text" id="address" name="address" required>
+
+        <!-- button for POST -->
+        <button type="button" onclick="submitHotel()">Save Location</button>
+    </form>
+
+    <!-- form for GET one hotel -->
+    <form id="read-hotel-form">
+        <label for="hotel-id">Hotel ID:</label>
+        <input type="text" id="hotel-id" name="hotel-id" required>
+
+        <!-- button for GET one hotel -->
+        <button type="button" onclick="readHotel()">Read Hotel Details</button>
+
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+        <!-- button for GET all hotels -->
+        <button type="button" onclick="readAllHotels()">Read All Hotels</button>
+    </form>
+
+    <!-- form for PUT specific hotel -->
+    <form id="update-hotel-form">
+        <label for="update-hotel-id">Hotel ID:</label>
+        <input type="text" id="update-hotel-id" name="update-hotel-id" required>
+
+        <label for="update-name">New Name:</label>
+        <input type="text" id="update-name" name="update-name" required>
+
+        <label for="update-address">New Address:</label>
+        <input type="text" id="update-address" name="update-address" required>
+
+        <!-- button for PUT one hotel -->
+        <button type="button" onclick="updateHotel()">Update Hotel</button>
+    </form>
+
+    <!-- form for DELETE specific hotel -->
+    <form id="delete-hotel-form">
+        <label for="delete-hotel-id">Hotel ID:</label>
+        <input type="number" id="delete-hotel-id" name="delete-hotel-id" required>
+
+        <!-- button for DELETE one hotel -->
+        <button type="button" onclick="deleteHotel()">Delete Hotel</button>
+    </form>
+</div>
+
+    <h2>Hotel Details:</h2>
+    <!-- display hotel details div -->
+    <div id="hotel-details"></div>
+
+{% endblock %}
+
+{% block sw_script %}
+
+    <!-- declare leaflet-->
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+
+<script>
+    // leaflet map setup
+    var map = L.map('map').setView([53.34, -6.26], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // overpass query URL for taxi ranks in Dublin
+    var overpassUrl = 'https://overpass-api.de/api/interpreter?data=[out:json];area[name="Dublin"]->.searchArea;node["amenity"="taxi"](area.searchArea);out;';
+
+    // display hotel details
+    function displayHotelDetails(details) {
+        // display hotel details in hotel-details div
+        var hotelDetailsDiv = document.getElementById('hotel-details');
+        hotelDetailsDiv.innerHTML = details;
+    }
+
+    // fetch taxi data
+    function displayHotels(hotels, taxiRanks) {
+        hotels.forEach(hotel => {
+            // extract coordinates from the location field
+            var location = hotel.location.match(/\(([^)]+)\)/)[1];
+            var [lon, lat] = location.split(' ').map(Number);
+
+            var name = hotel.name || 'Unnamed Hotel';
+            var address = hotel.address || 'No address available';
+            var h_id = hotel.id || 'No Hotel ID';
+
+            // create a red marker for each hotel
+            L.marker([lat, lon], {
+                icon: L.icon({ iconUrl: 'https://cdn.rawgit.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png' })
+            }).addTo(map)
+                .bindPopup(h_id + ",\n" + name + ",\n" + address); // Bind popup to show name and address
+
+            // create a circle around each hotel with a radius of 1000 meters
+            L.circle([lat, lon], { radius: 1000 }).addTo(map);
+
+            // filter taxi ranks within 1000m of the hotel
+            var nearbyTaxiRanks = taxiRanks.filter(taxiRank => {
+                var taxiLat = taxiRank.lat;
+                var taxiLon = taxiRank.lon;
+
+                // calculate distance using Haversine formula
+                // (also used in my FYP for distances on Earth)
+
+                var R = 6371000; // earth radius in meters
+                var dLat = (taxiLat - lat) * Math.PI / 180;
+                var dLon = (taxiLon - lon) * Math.PI / 180;
+                var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(lat * Math.PI / 180) * Math.cos(taxiLat * Math.PI / 180) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                var distance = R * c;
+
+                return distance <= 1000;
+            });
+
+            // create markers for nearby taxi ranks
+            nearbyTaxiRanks.forEach(taxiRank => {
+                L.marker([taxiRank.lat, taxiRank.lon]).addTo(map).bindPopup(taxiRank.tags.name);
+            });
+        });
+    }
+
+    fetch(overpassUrl)
+        .then(response => response.json())
+        .then(taxiData => {
+            // fetch hotel data from API
+            fetch('/api/v1/hotels/')
+                .then(response => response.json())
+                .then(hotelData => {
+                    displayHotels(hotelData, taxiData.elements);
+                })
+                .catch(error => console.error('Error fetching hotel data:', error));
+        })
+            .catch(error => console.error('Error fetching taxi rank data:', error));
+
+    // fetch hotel data from API
+    fetch('/api/v1/hotels/')
+        .then(response => response.json())
+        .then(data => {
+            displayHotels(data);
+        })
+        .catch(error => console.error('Error fetching hotel data:', error));
+
+    // draggable marker
+    var marker = L.marker([53.34, -6.26], { draggable: true }).addTo(map);
+
+    // event listener for marker
+    marker.on('dragend', function (event) {
+        var coordinatesInput = document.getElementById('coordinates');
+        var latlng = marker.getLatLng();
+        coordinatesInput.value = latlng.lng.toFixed(6) + ' ' + latlng.lat.toFixed(6);
+    });
+
+    function submitHotel() {
+
+        var formData = new FormData();
+
+        formData.append('name', document.getElementById('name').value);
+        formData.append('address', document.getElementById('address').value);
+
+        console.log(formData.coordinates)
+
+        // POST
+        fetch('/hotels/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.getElementsByName('csrfmiddlewaretoken')[0].value
+            }
+        })
+            .then(response => response.json())
+            .then(data => console.log('Success:', data))
+            .catch(error => console.error('Error:', error));
+
+        clearInputFields();
+    }
+
+    function readAllHotels() {
+        fetch('/hotels')
+            .then(response => response.json())
+            .then(data => {
+                console.log('All Hotels:', data);
+                displayHotelDetails(JSON.stringify(data, null, 2));
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+    function readHotel() {
+        var hotelId = document.getElementById('hotel-id').value;
+        fetch(`/hotels/${hotelId}/`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('Hotel Details:', data);
+                displayHotelDetails(JSON.stringify(data, null, 2));
+            })
+            .catch(error => console.error('Error:', error));
+
+        clearInputFields();
+    }
+
+    //WORKS ON FIREFOX
+    function deleteHotel() {
+        var hotelId = document.getElementById('delete-hotel-id').value;
+        fetch(`/hotels/${hotelId}`, {
+            method: 'DELETE',
+        })
+            .then(response => {
+                if (response.status === 204) {
+                    console.log('Hotel deleted successfully.');
+                } else {
+                    console.error('Error deleting hotel:', response.statusText);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+
+        clearInputFields();
+    }
+
+    function updateHotel() {
+        var hotelId = document.getElementById('update-hotel-id').value;
+        var updatedName = document.getElementById('update-name').value;
+        var updatedAddress = document.getElementById('update-address').value;
+
+        var formData = new FormData();
+        formData.append('name', updatedName);
+        formData.append('address', updatedAddress);
+
+        fetch(`/hotels/${hotelId}/`, {
+            method: 'PUT',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.getElementsByName('csrfmiddlewaretoken')[0].value
+            }
+        })
+            .then(response => {
+                if (response.status === 200) {
+                    console.log('Hotel updated successfully.');
+                } else {
+                    console.error('Error updating hotel:', response.statusText);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+
+        clearInputFields();
+    }
+
+    function clearInputFields() {
+        document.getElementById('name').value = '';
+        document.getElementById('address').value = '';
+        document.getElementById('hotel-id').value = '';
+        document.getElementById('update-name').value = '';
+        document.getElementById('update-address').value = '';
+        document.getElementById('update-hotel-id').value = '';
+        document.getElementById('delete-hotel-id').value = '';
+    }
+</script>
+{% endblock %}

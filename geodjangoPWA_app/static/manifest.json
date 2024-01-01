@@ -1,0 +1,26 @@
+{
+    "name": "Ben's Django PWA",
+    "short_name": "djangopwa",
+    "start_url": "/map",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#FFF",
+    "theme_color": "#61a85e",
+    "description": "Ben's test app for Django PWA",
+    "dir": "ltr",
+    "lang": "en-US",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+      "src": "icons/train_icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+        },
+       {
+      "src": "icons/bus_icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+        }
+    ]
+}

@@ -1,0 +1,63 @@
+{% load static %}
+<html lang="en">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <link rel="manifest" href="{% static 'manifest.json' %}">
+
+        <meta name="theme-color" content="#61a85e">
+
+        <!-- for Chrome on Android-->
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="application-name" content="{{ PWA_APP_NAME }}">
+
+        <!-- for Safari on iOS -->
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-title" content="{{ PWA_APP_NAME }}">
+        <meta name="apple-mobile-web-app-status-bar-style" content="{{ PWA_APP_STATUS_BAR_COLOR }}">
+
+        <link rel="stylesheet" href="{% static 'styles.css' %}">
+        <link rel="stylesheet" href="{% static 'navigation.css' %}">
+
+        <!-- leaflet -->
+        <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+        integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+        crossorigin=""/>
+
+        <script
+        src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+        integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+        crossorigin=""></script>
+
+        <title>{% block title %}Test PWA site{% endblock %}</title>
+    </head>
+    <body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="/map">Map</a></li>
+                <li><a href="/offline">Offline</a></li>
+                <li><a href="/hotels">Hotels</a></li>
+            </ul>
+        </nav>
+    </header>
+        {% block body %}
+        {% endblock %}
+
+        {% block sw_script %}
+            <script>
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.register('{% static 'serviceworker.js' %}')
+                        .then(function(registration) {
+                            console.log('Service Worker registered with scope:', registration.scope);
+                        })
+                .catch(function(error) {
+                    console.error('Service Worker registration failed:', error);
+                });
+    }
+            </script>
+        {% endblock %}
+    </body>
+</html>

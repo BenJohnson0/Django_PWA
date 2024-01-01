@@ -1,0 +1,43 @@
+/* navigation.css */
+
+/* Reset some default styles */
+body, h1, h2, p, ul, li {
+    margin: 0;
+    padding: 0;
+}
+
+/* Style the navigation bar */
+header {
+    background-color: #5ccdab;
+}
+
+nav {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+ul {
+    list-style: none;
+    display: flex;
+}
+
+li {
+    margin-right: 30px;
+}
+
+li:hover {
+    font-size: 10px;
+}
+
+a {
+    text-decoration: none;
+    color: black;
+    font-weight: bold;
+    font-size: 20px;
+}
+
+body {
+    margin-top: 0px;
+    font-family: 'Arial', sans-serif;
+    line-height: 3.5;
+}
